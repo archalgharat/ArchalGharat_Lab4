@@ -142,11 +142,53 @@ INSERT INTO RATING VALUES(14,114,1);
 INSERT INTO RATING VALUES(15,115,1);
 INSERT INTO RATING VALUES(16,116,0);
 
-
-
 select count(t2.cus_gender) as NoOfCustomers, t2.cus_gender from
 (select t1.cus_id, t1.cus_gender, t1.cus_name from 
-(select 'order'.*, customer.cus_gender, customer.cus_name from 'order' inner join customer where 'order'.cus_id=customer.cus_id having
-'order'.ord_amount>=3000)
-as t1 group by t1.cus_id) as t2 group by t2.cus_gender;
+(select `ORDER`.*, customer.cus_gender, customer.cus_name from `ORDER` inner join customer where `ORDER`.cus_id=customer.cus_id having
+`ORDER`.ord_amount>=3000)
+as t1 group by t1.cus_id) as t2 group by t2.cus_gender;	
+
+select count(t2.cus_gender) as NoOfCustomers,t2.cus_gender from 
+(select t1.cus_id,t1.cus_gender,t1.ord_amount,t1.CUS_NAME from
+(select `order`.*,customer.cus_gender,customer.cus_name from `order`inner join customer where `order`.cus_id=customer.cus_id having 
+`order`.ord_amount>=3000) as t1 group by t1.cus_id) as t2 group by t2.cus_gender;
+
+select product.PRO_NAME,`order`.* from `order`,supplier_pricing,product 
+where `order`.cus_id=2 and `order`.PRICING_ID=supplier_pricing.PRICING_ID and supplier_pricing.PRO_ID=product.PRO_ID;
+
+select supplier.* from supplier where supplier.supp_id in
+(select supp_id from supplier_pricing group by supp_id having
+count(SUPP_ID)>1 ) group by supplier.SUPP_ID;
+
+select category.CAT_ID,category.cat_name,min(t3.min_price) as Min_price from category 
+inner join (select product.CAT_ID,product.PRO_NAME,t2.* from product inner join 
+(select PRO_ID,min(supp_price) as Min_price from supplier_pricing group by PRO_ID)
+as t2 where t2.PRO_ID =product.PRO_ID)
+as t3 where t3.CAT_ID =category.CAT_ID group by t3.CAT_ID;
+
+select product.PRO_ID,product.PRO_NAME from `order` inner join supplier_pricing on supplier_pricing.PRICING_ID=`order`.PRICING_ID
+inner join product on product.PRO_ID =supplier_pricing.PRO_ID where `order`.ORD_DATE>"2021-10-05";
+
+select customer.CUS_NAME,customer.CUS_GENDER from customer where customer.CUS_NAME like 'a%' or customer.CUS_NAME like '%a';
+
+DELIMITER //
+CREATE PROCEDURE RatingsOfSuppliers()
+BEGIN
+	SELECT report.SUPP_ID, report.SUPP_NAME, report.Average,
+    case
+    when report.Average = 5 then 'Excellent Service'
+    when report.Average = 4 then 'Good Service'
+    when report.Average = 2 then 'Average Service'
+    else 'Poor Service'
+    End AS Type_Of_Service from
+    (select final.SUPP_ID, supplier.SUPP_NAME, final.Average from
+    (select test2.supp_id, sum(test2.Rat_Ratstars)/count(test2.rat_ratstars) as Average from
+    (select supplier_pricing.SUPP_ID,test.ord_id,test.rat_ratstars from supplier_pricing inner join
+	(select `order`.PRICING_ID,rating.ORD_ID,rating.RAT_RATSTARS from `order` inner join rating on rating.ORD_ID = `order`.ord_id) as test
+    on test.pricing_id = supplier_pricing.pricing_id) as test2
+    group by supplier_pricing.supp_id)
+    as final inner join supplier where final.supp_id = supplier.supp_id) as Report;
+END //
+DELIMITER ;
+call RatingsofSuppliers();
 
